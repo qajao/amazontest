@@ -1,59 +1,82 @@
 package org.swapcard.qa.tests;
 
-import org.openqa.selenium.*;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.firefox.FirefoxDriver;
-import org.openqa.selenium.support.ui.Select;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.swapcard.qa.pages.AmazonHomePage;
+import org.swapcard.qa.pages.ProductPage;
+import org.swapcard.qa.pages.CartPage;
+import org.testng.annotations.*;
 
-public class AmazonTests {
-    WebDriver driver;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThan;
+
+public class AmazonTests extends BaseTest {
+    private AmazonHomePage homePage;
+    private ProductPage productPage;
+    private CartPage cartPage;
 
     @BeforeMethod
-    public void setup() throws InterruptedException {
-        String browserName = System.getProperty("browser", "chrome");
-
-        if ("chrome".equals(browserName)) {
-            ChromeOptions options = new ChromeOptions();
-            options.addArguments("--incognito");
-            driver = new ChromeDriver(options);
-        }
-        else if ("firefox".equals(browserName)) {
-            driver = new FirefoxDriver();
-        }
-
-        driver.get("https://www.amazon.com");
-
-        // if you face errors here you may need to enter captcha manually. It's intermittent.
-        driver.findElement(By.cssSelector("[placeholder=\"Search Amazon\"]"))
-                .sendKeys("Ariano Suassuna" + Keys.ENTER);
-        Thread.sleep(5000);
-        driver.findElement(By.partialLinkText("Auto da Compadecida")).click();
-        driver.findElement(By.id("add-to-cart-button-ubb")).click();
+    public void initPages() {
+        homePage = new AmazonHomePage(driver);
+        productPage = new ProductPage(driver);
+        cartPage = new CartPage(driver);
     }
 
-    @AfterMethod
-    public void tearDown() {
-        driver.quit();
+    @DataProvider(name = "CartData")
+    public Object[][] provideCartData() {
+        return new Object[][] {
+                { "Ariano Suassuna", "Auto da Compadecida", "Essential Scrum: A Practical Guide to the Most Popular Agile Process (Addison-Wesley Signature Series (Cohn))" }
+        };
     }
 
-    @Test
-    public void addAndRemoveProductWillResultInLessThan100Bucks() throws InterruptedException {
-        driver.findElement(By.cssSelector("[placeholder=\"Search Amazon\"]"))
-                .sendKeys("When: The Scientific Secrets of Perfect Timing" + Keys.ENTER);
-        driver.findElement(By.cssSelector("[data-cy=\"title-recipe\"] a")).click();
-        new Select(driver.findElement(By.cssSelector("[name=\"quantity\"]"))).selectByValue("2");
-        driver.findElement(By.id("add-to-cart-button")).click();
-        Thread.sleep(5000);
-        driver.findElement(By.partialLinkText("Go to Cart")).click();
-        driver.findElement(By.cssSelector("[data-a-selector=\"decrement\"]")).click();
-        Thread.sleep(1000);
-        String subTotal = driver.findElement(By.cssSelector("[id='sc-subtotal-amount-activecart'] span")).getText();
-        float subTotalFloat = Float.parseFloat(subTotal.replaceAll("[^\\d.]", ""));
+    @DataProvider(name = "BookData")
+    public Object[][] provideBookData() {
+        return new Object[][] {
+                { "Jorge Amado", "Dona Flor and Her Two Husbands" },
+                { "Nick page", "Christmas: Tradition, Truth and Total Baubles" }
+        };
+    }
 
-        assert(subTotalFloat < 100): "Subtotal should be less than 100 USD";
+    @Test(dataProvider = "CartData")
+    public void addAndRemoveProductWillResultInLessThan100Bucks(
+            String author,
+            String firstTitle,
+            String secondTitle
+    ) {
+        // Search and add fist product
+        homePage.searchProduct(author);
+        homePage.clickOnProduct(firstTitle);
+        productPage.addToCart();
+
+        // Search and add second product
+        homePage.searchProduct(secondTitle);
+        homePage.clickOnProduct(secondTitle);
+        productPage.selectQuantity("2");
+        productPage.addToCart();
+
+        // Navigate to cart and remove one of the items
+        cartPage.navigateToCart();
+        cartPage.removeItem();
+
+        // Check if subtotal is less than 100 USD
+        float subTotal = cartPage.getSubTotal();
+        assertThat("Expected the cart subtotal to be less than 100 USD, but it was " + subTotal,
+                subTotal, lessThan(100.0f));
+    }
+
+    @Test(dataProvider = "BookData")
+    public void validateFiveStarRating(String searchKeyword, String title) {
+        // Filter products by the 'Books' category
+        homePage.filterByCategory("Books");
+        // Search for products 'Jorge Amado'
+        homePage.searchProduct(searchKeyword);
+        // Click on the product titled
+        homePage.clickOnProduct(title);
+
+        // Get five start rating percentage
+        int fiveStarPercentage = productPage.getFiveStarRatingPercentage();
+
+        // Assert that at least 70% of the reviews are 5 star ratings
+        assertThat("Percentage of 5 star reviews is less than 70%",
+                fiveStarPercentage, greaterThanOrEqualTo(70));
     }
 }
