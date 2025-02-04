@@ -4,7 +4,7 @@ v1.0 January, 22 2024.
 
 ## Context
 
-Hi, this is my test for swapcard I implemented It follows a Page Object Model (POM) structure using PageFactory. I used TestNg and Hamcrest for validation.
+Hi, this is my test for Amazon I implemented It follows a Page Object Model (POM) structure using PageFactory. I used TestNg and Hamcrest for validation.
 
 ## Requirements
 
