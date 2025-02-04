@@ -1,4 +1,4 @@
-# Swapcard QA Engineer test
+# Amazon QA Engineer test
 
 v1.0 January, 22 2024.
 
